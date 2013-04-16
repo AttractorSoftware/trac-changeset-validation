@@ -14,8 +14,6 @@ class ChangesetValidatorCommand(Component):
     def get_admin_commands(self):
         yield ('changeset validate_messages', '<repository> <message_data>',
                """Validate changeset message(s) against tickets mentioned in messages
-
-                This command should appear in the list of commands
                """,
                self.complete, self.validate)
 
