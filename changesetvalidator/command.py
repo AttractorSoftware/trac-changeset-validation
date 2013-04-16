@@ -23,10 +23,10 @@ class ChangesetValidatorCommand(Component):
         for commit_id, message in messages.items():
             changeset_message = self._build_changeset_message(message)
             if changeset_message.is_declined():
-                error_messages.append('Commit ID ' + commit_id + " is declined: \n" +
+                error_messages.append('Commit ' + commit_id + ' ("' + message.rstrip('\r\n') + '") is declined:' + "\n" +
                                       changeset_message.get_errors_text())
             else:
-                self._log_debug_message('Commit ID ' + commit_id + " passed: \n" +
+                self._log_debug_message('Commit ' + commit_id + " passed: \n" +
                                         changeset_message.get_errors_text())
 
         if len(error_messages) > 0:
