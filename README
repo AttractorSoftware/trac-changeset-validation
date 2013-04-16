@@ -1,0 +1,22 @@
+Installation procedures:
+
+Either build an egg:
+
+    python setup.py bdist_egg
+
+or use development environment:
+
+    python setup.py develop -mxd $TRAC_ENV/plugins
+
+Add to trac.ini configuration for plugin (use any valid states as needed):
+
+    [changeset-validator]
+    valid_ticket_states = accepted, assigned
+
+Enable plugin in trac.ini
+
+    [components]
+    ...
+    changesetvalidator.* = enabled
+
+Copy (or link) pre-receive file to the git repository "hooks" directory.

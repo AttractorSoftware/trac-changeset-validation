@@ -1,0 +1,62 @@
+from trac.core import *
+from trac.admin.api import IAdminCommandProvider
+import sys
+from trac.versioncontrol.api import RepositoryManager
+from trac.versioncontrol.svn_fs import SubversionChangeset
+import svn
+import svn.fs
+import svn.repos
+import svn.core
+import re
+from trac.ticket.api import TicketSystem
+from trac.ticket.model import Ticket
+from trac.resource import ResourceNotFound
+
+class ChangesetValidatorCommand(Component):
+    """trac-admin command provider for changeset validation."""
+    implements(IAdminCommandProvider)
+
+    def get_admin_commands(self):
+        yield ('changeset validate', '<repository> <transaction>',
+               """Validate changeset against tickets mentioned in message
+
+                This command should appear in the list of commands
+               """,
+               self.complete, self.validate)
+
+    def validate(self, repository_path, transaction_id):
+        message = self._get_log_message(repository_path, transaction_id)
+        if self._message_refers_to_ticket_allowing_commits(message): return 0
+        print >> sys.stderr, 'Neither of the ticket mentioned in the commit message are in the development: ' + str(self.get_valid_ticket_states())
+        return 25
+
+    def complete(self, args):
+        pass
+
+    def get_valid_ticket_states(self):
+        valid_states = self.config.getlist('changeset-validator', 'valid_ticket_states')
+        return valid_states
+
+    def _message_refers_to_ticket_allowing_commits(self, message):
+        for ticket_number in self._find_ticket_number_in_text(message):
+            try:
+                ticket = Ticket(self.env, ticket_number)
+                statuses_allowing_commits = self.get_valid_ticket_states()
+                if ticket["status"] in statuses_allowing_commits: return True
+            except ResourceNotFound: # ticket does not exist
+                pass
+        return False
+
+
+    def _find_ticket_number_in_text(self, text):
+        r = re.compile("#(\d+)")
+        for match in r.finditer(text):
+            yield int(match.group(1))
+
+    def _get_log_message(self, repository_path, transaction_id):
+        fs = svn.repos.svn_repos_fs(svn.repos.svn_repos_open(repository_path))
+        txn = svn.fs.svn_fs_open_txn(fs, transaction_id)
+        log_message = svn.fs.svn_fs_txn_prop(txn, "svn:log")
+        return log_message
+
+

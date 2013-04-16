@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (c) 2011 Grzegorz Sobański (initial code)
+# Modified      2013 Dmitrii Tsyganov (SD Attractor)
+#
+# Version: 0.2
+#
+# Git pre receive hook to validate commit messages before allowing to push.
+# Is part of the TracChangesetValidationPlugin
+#
+# Original script:
+# http://trac-hacks.org/attachment/wiki/GitPlugin/trac-post-receive-hook-0.12-new-commits-from-all-branches.py
+import json
+import re
+import os
+import sys
+from subprocess import Popen, PIPE, call
+
+# config
+TRAC_ENV = '../test'
+GIT_PATH = 'git'
+TRAC_ADMIN = 'trac-admin'
+REPO_NAME = 'Git Test Repo'
+# if you are using gitolite or sth similar, you can get the repo name from environemt
+# REPO_NAME = os.getenv('GL_REPO')
+
+
+# communication with git
+def call_git(command, args, input=None):
+    return Popen([GIT_PATH, command] + args, stdin=PIPE, stdout=PIPE).communicate(input)[0]
+
+
+def get_new_commits(ref_updates):
+    """ Gets a list uf updates from git running post-receive,
+    we want the list of new commits to the repo, that are part
+    of the push. Even if the are in more then one ref in the push.
+
+    Basically, we are running:
+    git rev-list new1 ^old1 new2 ^old2 ^everything_else
+
+    It returns a list of commits"""
+
+    all_refs = set(call_git('for-each-ref', ['--format=%(refname)']).splitlines())
+    commands = []
+    for old, new, ref in ref_updates:
+        # branch delete, skip it
+        if re.match('0*$', new):
+            continue
+
+        commands += [new]
+        all_refs.discard(ref)
+
+        if not re.match('0*$', old):
+            # update
+            commands += ["^%s" % old]
+            # else: new - do nothing more
+
+    for ref in all_refs:
+        commands += ["^%s" % ref]
+
+    new_commits = call_git('rev-list', ['--stdin', '--reverse'], '\n'.join(commands)).splitlines()
+    return new_commits
+
+
+def handle_trac_admin(command, sub_command, parameters):
+    if not (os.path.exists(TRAC_ENV) and os.path.isdir(TRAC_ENV)):
+        print "Trac path (%s) is not a directory." % TRAC_ENV
+
+    args = [TRAC_ADMIN, TRAC_ENV, command, sub_command] + parameters
+
+    return call(args)
+
+
+def get_messages(commits):
+    messages = {}
+
+    for commit in commits:
+        messages[commit] = call_git('show', ['-s', '--pretty=%s', commit])
+
+    return messages
+
+# main
+if __name__ == '__main__':
+    # gather all commits
+    lines = sys.stdin.readlines()
+    input_refs = [line.split() for line in lines]
+    commit_refs = get_new_commits(input_refs)
+    messages = get_messages(commit_refs)
+
+    # call trac-admin
+    result = handle_trac_admin('changeset', 'validate_messages', [REPO_NAME, json.dumps(messages)])
+
+    sys.exit(result)
+
