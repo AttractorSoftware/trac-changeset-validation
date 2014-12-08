@@ -7,8 +7,8 @@ setup(
     name=PACKAGE,
     version=VERSION,
     description='Changeset validation routines',
-    author="SDAttractor",
-    author_email="info@sdattractor.com",
+    author="IT Attractor",
+    author_email="info@it-attractor.com",
     license='',
     url='',
     packages=['changesetvalidator'],
@@ -18,10 +18,6 @@ setup(
         ]
     },
     package_data={
-        'changesetvalidator': [
-            'htdocs/css/*.css',
-            'htdocs/js/*.js',
-            'templates/*.html',
-        ],
+        'changesetvalidator': [],
     }
 )
