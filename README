@@ -19,4 +19,8 @@ Enable plugin in trac.ini
     ...
     changesetvalidator.* = enabled
 
-Copy (or link) pre-receive file to the git repository "hooks" directory.
+pre-receive and post-receive files use env variables TRAC_ENV and REPO_NAME
+by default TRAC_ENV='../trac_env', REPO_NAME='(default)'
+Copy (or link) them to the git repository "hooks" directory to use default values
+Else (for example, when you have multiple repositories or different env location) create your own hooks
+Those hooks should export TRAC_ENV and REPO_NAME and call post-receive.py or pre-receive.py

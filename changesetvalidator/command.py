@@ -14,6 +14,8 @@ class ChangesetValidatorCommand(Component):
     def get_admin_commands(self):
         yield ('changeset validate_messages', '<repository> <message_data>',
                """Validate changeset message(s) against tickets mentioned in messages
+
+                This command should appear in the list of commands
                """,
                self.complete, self.validate)
 
@@ -23,10 +25,10 @@ class ChangesetValidatorCommand(Component):
         for commit_id, message in messages.items():
             changeset_message = self._build_changeset_message(message)
             if changeset_message.is_declined():
-                error_messages.append('Commit ' + commit_id + ' ("' + message.rstrip('\r\n') + '") is declined:' + "\n" +
+                error_messages.append('Commit ID ' + commit_id + " is declined: \n" +
                                       changeset_message.get_errors_text())
             else:
-                self._log_debug_message('Commit ' + commit_id + " passed: \n" +
+                self._log_debug_message('Commit ID ' + commit_id + " passed: \n" +
                                         changeset_message.get_errors_text())
 
         if len(error_messages) > 0:
@@ -71,13 +73,16 @@ class ChangesetMessage:
 
     def is_declined(self):
 
-        if self._valid_tickets == 0:
+        if self._valid_tickets == 0 and not self._is_merge_commit():
             return True
 
         return False
 
     def get_errors(self):
         return self._errors
+
+    def _is_merge_commit(self):
+        return re.match("^merge", self._message, flags=re.IGNORECASE) is not None
 
     def get_errors_text(self):
         text = []

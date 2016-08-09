@@ -1,21 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2011 Grzegorz Sobański (initial code)
-# Modified      2013 Dmitrii Tsyganov (SD Attractor)
+# Copyright (c) 2011 Grzegorz Sobański
 #
-# Version: 0.2
+# Version: 2.0
 #
-# Git pre receive hook to validate commit messages before allowing to push.
-# Is part of the TracChangesetValidationPlugin
+# Git post receive script developed for mlabs
+# - adds the commits to trac
+# based on post-receive-email from git-contrib
 #
-# Original script:
-# http://trac-hacks.org/attachment/wiki/GitPlugin/trac-post-receive-hook-0.12-new-commits-from-all-branches.py
-import json
+# http://trac-hacks.org/attachment/wiki/GitPlugin/trac-post-receive-hook-0.12-new-commits-from-all-branches.py?format=raw'
+#
+#
+#import gitconfig
 import re
 import os
 import sys
 from subprocess import Popen, PIPE, call
+import gitconfig
 
 activate_this = '/home/itattractor/trac-venv/bin/activate_this.py'
 execfile(activate_this, dict(__file__=activate_this))
@@ -26,8 +28,15 @@ GIT_PATH = 'git'
 TRAC_ADMIN = 'trac-admin'
 REPO_NAME = os.getenv('REPO_NAME', '(default)')
 
+# config = gitconfig.config("./config")
+# trac_git_config = getattr(config, 'trac')
+# REPO_NAME = trac_git_config.tracreponame
+
+# if you are using gitolite or sth similar, you can get the repo name from environemt
+# REPO_NAME = os.getenv('GL_REPO')
 
 # communication with git
+
 def call_git(command, args, input=None):
     return Popen([GIT_PATH, command] + args, stdin=PIPE, stdout=PIPE).communicate(input)[0]
 
@@ -55,7 +64,7 @@ def get_new_commits(ref_updates):
         if not re.match('0*$', old):
             # update
             commands += ["^%s" % old]
-            # else: new - do nothing more
+        # else: new - do nothing more
 
     for ref in all_refs:
         commands += ["^%s" % ref]
@@ -64,35 +73,25 @@ def get_new_commits(ref_updates):
     return new_commits
 
 
-def handle_trac_admin(command, sub_command, parameters):
+def handle_trac(commits):
     if not (os.path.exists(TRAC_ENV) and os.path.isdir(TRAC_ENV)):
         print "Trac path (%s) is not a directory." % TRAC_ENV
 
-    args = [TRAC_ADMIN, TRAC_ENV, command, sub_command] + parameters
+    if len(commits) == 0:
+        return
 
-    return call(args)
+    args = [TRAC_ADMIN, TRAC_ENV, 'changeset', 'added', REPO_NAME] + commits 
+    print args
+    call(args)
 
-
-def get_messages(commits):
-    messages = {}
-
-    for commit in commits:
-        messages[commit] = call_git('show', ['-s', '--pretty=%s', commit])
-
-    return messages
 
 # main
 if __name__ == '__main__':
-
-    # gather all commits
+    Popen("pwd")
+    # gather all commits, to call trac-admin only once
     lines = sys.stdin.readlines()
-    print lines
-    input_refs = [line.split() for line in lines]
-    commit_refs = get_new_commits(input_refs)
-    messages = get_messages(commit_refs)
-
+    updates = [line.split() for line in lines]
+    commits = get_new_commits(updates)
+    # print commits
     # call trac-admin
-    result = handle_trac_admin('changeset', 'validate_messages', [REPO_NAME, json.dumps(messages).replace("\'", "&apos;")])
-
-    sys.exit(result)
-
+    handle_trac(commits)
