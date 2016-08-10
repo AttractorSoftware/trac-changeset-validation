@@ -17,7 +17,6 @@ import re
 import os
 import sys
 from subprocess import Popen, PIPE, call
-import gitconfig
 
 TRAC_VENV = os.path.join(os.getenv('TRAC_VENV', '/home/itattractor/trac-venv'), 'bin/activate_this.py')
 execfile(TRAC_VENV, dict(__file__=TRAC_VENV))
